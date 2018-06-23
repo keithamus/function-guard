@@ -1,0 +1,69 @@
+sudo: true
+
+dist: trusty
+
+language: node_js
+
+cache:
+  directories:
+    - ~/.npm
+
+node_js: 10
+
+jobs:
+  include:
+    - stage: lint
+      script: npm run lint
+    - stage: test
+      addons:
+        chrome: stable
+        firefox: latest
+      before_script:
+        - "sudo chown root /opt/google/chrome/chrome-sandbox"
+        - "sudo chmod 4755 /opt/google/chrome/chrome-sandbox"
+      script: npm run test:browser
+      env:
+        - QUICKLY_TEST_BROWSERS_AVAILABLE_IN_CI=1 # kept here for easier reading of build log
+    - stage: test
+      addons:
+        sauce_connect:
+          username: "keithamus"
+      script:
+        - npm run test:browser
+      env:
+        - TEST_BROWSERS_IN_SAUCELABS=1 # kept here for easier reading of build log
+        - SAUCE_USERNAME="keithamus"
+        - SAUCE_CONNECT_READY_FILE=/tmp/sauce-connect-ready
+        # SAUCELABS_ACCESS_KEY=...
+        - secure: "RCcjzp36kveBXVQ+gWsG041M+g+GY/R6A5SfZnq0OiH70wCxplFm6I+4BImbO+0WP/j4780fe+ibe4QPbA8iAb/uxA51iyiAYGtf0fSuTX7e7oySkEbLpF8+QtlN+dvbIcnU02iVqNEPkXU3ykDs1AQNVKQq8Y6CwhZfyxwoubhqB/zSQhYkanIA9xJp7o7EIwIMXQONeerrqPruK9zwG/CdeALppiBsWYyzjMPYOFZgmykoNCmjNUSM+NadY8n+wWD+8+oevC1nUsdJlvokx5ELpVPO5VHgN1o/aS1nzV/2lMoRiZXhl2CKnxp9EX6kX4n01cVXJptv4YMiVgyPW6o/ghg8PnKDxJy4rXD9swG5U/zACw5vZZkaTfBwKpdgK/vkW2i7ms06Zm/Q54yj8FtRNptE5mAdfkaT+i+B2lS/M7FJi6HfRytlDyasutorTJzgpxlul55obeEKkJq3mo4/XvUmUjvp3XTOzBVlThA7bvsQljKZzoF7NCb3rjCHV+xSI2YJ5dq2LUOVwjXAT7QxGEb1b3eFuF79V64yl9mOk4IvbzAqxW5LV5/we2o/gjiWdufoVu29xC8hSPJDaB1014eVNHLAqYAFESZxRa058BAaxHFsfCTLM80lC19LerMLo2O0cwnX6FfWuNdSby9g8b0KIvl/s9DDaBT2Ns0="
+    - stage: test
+      node_js: 8 # to be removed 2019-12-01
+      script: npm run test:node
+    - stage: test
+      node_js: 7 # to be removed 2017-06-30
+      before_install: npm i -g npm@6
+      script: npm run test:node
+    - stage: test
+      node_js: 6 # to be removed 2019-04-01
+      before_install: npm i -g npm@6
+      script: npm run test:node
+    - stage: test
+      node_js: lts/* # safety net; don't remove
+      script: npm run test:node
+    - stage: test
+      node_js: node # safety net; don't remove
+      script: npm run test:node
+    - stage: semantic-release
+      script:
+        - if [ "$TRAVIS_PULL_REQUEST" != "false" ] || [ "$TRAVIS_BRANCH" != "master" ]; then echo "the deploy job only runs for the master branch. This build will now exit"; exit 0; fi
+        - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]; then npm run semantic-release; fi
+      env:
+       - BUILD_LEADER_ID=10
+       # GH_TOKEN function-guard travis
+       - secure: "nbwwopDvPjPu0wyzfOGmmtyK0dkdN30sBrGF6XpaokglK69G/HPZdxrJSXLjxDlgPFh76Ky0vDxuHNeGtLzrQbXvg/b6d6Rwor1jf+qYBHt2ec6KIS4lyD3VqegJUdlgCWUGdQJSJwZwGjeOdEBMKRdNlFwptiXfdVAOikMOPxAY0g5wxbZ18d/u4rkY2PlEZBqbMkJYqL/+cNguClUM4wdS+UaDEr7ZwcFaaTtWV8wQFBr8f3jxQHvESpEF4A8/uyK13UoD3gMprJapqgGiraibp0lYPVDV4MRZeDQRWutY1w394vq2JmVYqNy+CIm846cKhlzDauvPRiJbivGEQgY95p+9pKvyEOEYO5bDl5TC0p7zeiqtU6m9zpDeI+gNv1xNmYDWFhbsT1lkFsMjQM1QP4Jjz7XbwEY76gGD1bylDzaJ3y3mfUjXRSKFa/eRJ1a2+t0m21ORr5uNpz9UXswKaPjw9MbmB/Vm2Nxpn1sLdoXazCQU//HsioCFvVeB8q/j1it9iYvRExdPoBQSB7vqIsVtO3yKUBezCPiRiVJKlu37AAvQpaJ6YkveWJ5ECjIwmCE7rDrCzWfbdPcVCc08P1xdJoui5CXqWnGlI+jrRTiBdOBjmBgRIYZdHCcA8gcIIn9oC+bmyhBrf4pWEzKP5oFSoIDgoDmd43JUpEg="
+       # NPM_TOKEN …1505f5390a59
+       - secure: "AkQxJXJ6ASMHZMr4gJd5l2V2+4IcsL+gLkKVpNA3jGtvHWQLVu5GYDuVg6vwsS4tCzLCRccjny53LNP6rtwmq+ddoJUKnrJFBve7dy7944vqWY8FFpCcfwT4tZBpRxI4k64eXK9oOv6pGMEG/5tbN9PIhFMzEoMDAkyEbKYrT3wo+WRkPqFdbiaomtn17q8NFVkuvf94QVH7lnohgXg5QA7Jvlc7ESr6ERQh6Q+bAQgME1YBUdkrP1rRaFWpLqwERoIurrncbrzmV9NNuqV3J7xqbWTJy0rjD0KE/7ZaItrCFSViiJXUlAqRS0zjMm9HBoWQYjS04n8Zz1hyU0P755O+arXOV4pZu3Ig4qFCJGniUi/fckVkOROhtk87N/chsGJwOmtEs7qMvi1k9gxE6MBBhubammfLbuhWCf03a/errxp++5n01qzKPpmVo3cqVdQUMO3Jm/A8DNCHpk4mjShob9ly1iLpfapffX1RgCKy2NDDLjR3EIAcXN+6Ndg3DbXv9hxfi8LS6tZqwZnU374YvHukaas/XjvK8V3N3A3ZaqB6ZPD18S3L0RDfrC2IObNU1syT/aa7suXP24BgZMNiy0YHPQkUr0arbr2quDNKydpFCBOk8giAtfVw1EH853g0LXEV+V0xhWinFD6lUMXkXT2DGGjiPLLs2NyMMWs="
+
+env:
+  global:
+    - LOGS_DIR=/tmp/chai-build/logs
